@@ -3,12 +3,12 @@
 Un outil OSINT (Open Source Intelligence) autonome et puissant pour la collecte d'informations, développé en Python.
 
 ```ascii
-     ____  _____ _____ _____ _____ 
-    |    \|  _  |  |  |   __|   __|
-    |  |  |     |  |  |__   |__   |
-    |____/|__|__|\___/|_____|_____|
+    ____     _ _____ _ _ _ _____ 
+    |    \ ___ |  _  | | | |   __|
+    |  |  |   ||     | | | |__   |
+    |____/|___||__|__|_____|\_____|
     =====================================================
-          Secret OSINT Tool - By Djaws
+             Secret OSINT Tool
     =====================================================
 ```
 

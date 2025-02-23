@@ -1,36 +1,15 @@
-#!/usr/bin/env python3
-
-import sys
-import socket
 import asyncio
+import socket
 import aiohttp
-import httpx
 from bs4 import BeautifulSoup
-from colorama import init, Fore, Style
 from tqdm import tqdm
-from fake_useragent import UserAgent
-from wappalyzer import Wappalyzer, WebPage
-from vulners import Vulners
+import sys
+from colorama import Fore, Style, init
 
-init()  # Initialize colorama
+# Initialize colorama
+init()
 
-class OsintToolkit:
-    def __init__(self):
-        self.ua = UserAgent()
-        self.headers = {'User-Agent': self.ua.random}
-        self.target = None
-        self.vulners_api = None  # Will be initialized if API key is provided
-        self.wappalyzer = Wappalyzer.latest()
-        self.results = {
-            'ip_addresses': set(),
-            'open_ports': set(),
-            'subdomains': set(),
-            'technologies': {},
-            'vulnerabilities': []
-        }
-
-    def print_banner(self):
-        banner = """
+ascii_art = """
     ____     _ _____ _ _ _ _____ 
     |    \ ___ |  _  | | | |   __|
     |  |  |   ||     | | | |__   |
@@ -38,41 +17,37 @@ class OsintToolkit:
     =====================================================
              Secret OSINT Tool
     =====================================================
-        """
-        print(Fore.CYAN + banner + Style.RESET_ALL)
+"""
 
-    def basic_port_scan(self, target):
-        """Scan de ports basique"""
-        ports = [21, 22, 23, 25, 53, 80, 443, 445, 3306, 3389, 8080, 8443]
-        
-        for port in tqdm(ports, desc="Scanning ports"):
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(1)
-                result = sock.connect_ex((target, port))
-                if result == 0:
-                    try:
-                        service = socket.getservbyport(port)
-                        self.results['open_ports'].add(f"{port}/tcp ({service})")
-                    except:
-                        self.results['open_ports'].add(f"{port}/tcp (unknown)")
-                sock.close()
-            except:
-                continue
+class OsintScanner:
+    def __init__(self):
+        self.target = None
+        self.results = {
+            'ip_addresses': set(),
+            'subdomains': set(),
+            'open_ports': set(),
+            'technologies': set(),
+            'sensitive_paths': set()
+        }
 
     async def check_subdomain(self, session, domain):
         """Vérifie si un sous-domaine existe"""
         try:
             ip = socket.gethostbyname(domain)
-            # Vérification HTTP
-            url = f"http://{domain}"
-            try:
-                async with session.get(url, timeout=5) as response:
-                    text = await response.text()
-                    soup = BeautifulSoup(text, 'html.parser')
-                    title = soup.title.string.strip() if soup.title else "No title"
-                    self.results['subdomains'].add(f"{domain} ({ip}) - {title}")
-            except:
+            for protocol in ['http', 'https']:
+                url = f"{protocol}://{domain}"
+                try:
+                    async with session.get(url, timeout=5, ssl=False) as response:
+                        if response.status == 200:
+                            text = await response.text()
+                            soup = BeautifulSoup(text, 'html.parser')
+                            title = soup.title.string.strip() if soup.title else "No title"
+                            self.results['subdomains'].add(f"{domain} ({ip}) - {title} [{protocol}]")
+                            break
+                except:
+                    continue
+            
+            if domain not in [s.split()[0] for s in self.results['subdomains']]:
                 self.results['subdomains'].add(f"{domain} ({ip})")
             self.results['ip_addresses'].add(ip)
         except:
@@ -81,11 +56,14 @@ class OsintToolkit:
     async def discover_subdomains(self):
         """Découverte des sous-domains"""
         wordlist = [
-            'www', 'mail', 'ftp', 'admin', 'blog', 'dev', 'test',
-            'staging', 'api', 'cdn', 'shop', 'store', 'remote',
-            'vpn', 'ns1', 'ns2', 'smtp', 'webmail', 'portal',
-            'support', 'cloud', 'mx', 'email', 'app', 'apps'
+            # Liste des sous-domaines comme avant...
+            'www', 'mail', 'webmail', 'smtp', 'pop', 'pop3', 'imap',
+            'remote', 'blog', 'test', 'dev', 'beta', 'secure', 'vpn',
+            'ns1', 'ns2', 'dns1', 'dns2', 'dns', 'mx', 'mx1', 'mx2'
         ]
+
+        print(f"\n{Fore.CYAN}Démarrage de l'énumération des sous-domaines...{Style.RESET_ALL}")
+        print(f"Tentative sur {len(wordlist)} sous-domaines potentiels")
 
         async with aiohttp.ClientSession() as session:
             tasks = []
@@ -94,106 +72,225 @@ class OsintToolkit:
                 task = asyncio.create_task(self.check_subdomain(session, full_domain))
                 tasks.append(task)
             
-            with tqdm(total=len(tasks), desc="Checking subdomains") as pbar:
+            with tqdm(total=len(tasks), desc="Vérification des sous-domaines") as pbar:
                 for coro in asyncio.as_completed(tasks):
                     await coro
                     pbar.update(1)
 
-    async def detect_technologies(self, url):
-        """Détecte les technologies utilisées"""
+    async def check_path(self, session, base_url, path):
+        """Vérifie si un chemin existe"""
+        url = f"{base_url.rstrip('/')}{path}"
         try:
-            async with httpx.AsyncClient(headers=self.headers, verify=False) as client:
-                response = await client.get(url)
-                webpage = WebPage(url, html=response.text, headers=dict(response.headers))
-                techs = self.wappalyzer.analyze_with_versions(webpage)
-                
-                for tech, data in techs.items():
-                    version = data.get('version', ['Unknown'])[0]
-                    self.results['technologies'][tech] = version
+            async with session.get(url, timeout=5, ssl=False) as response:
+                if response.status != 404:
+                    status = response.status
+                    if status == 200:
+                        text = await response.text()
+                        soup = BeautifulSoup(text, 'html.parser')
+                        title = soup.title.string.strip() if soup.title else "No title"
+                        self.results['sensitive_paths'].add(f"{path} ({status}) - {title}")
+                    else:
+                        self.results['sensitive_paths'].add(f"{path} ({status})")
+        except:
+            pass
 
-                    # Recherche de vulnérabilités si une clé API Vulners est configurée
-                    if self.vulners_api and version != 'Unknown':
-                        try:
-                            vulns = self.vulners_api.software_vulnerabilities(tech, version)
-                            if vulns:
-                                for vuln in vulns:
-                                    self.results['vulnerabilities'].append({
-                                        'technology': tech,
-                                        'version': version,
-                                        'cve': vuln.get('id'),
-                                        'cvss': vuln.get('cvss', {}).get('score', 'N/A'),
-                                        'description': vuln.get('description')
-                                    })
-                        except:
-                            pass
-        except Exception as e:
-            print(f"Erreur lors de la détection des technologies: {str(e)}")
+    async def enumerate_paths(self, session, base_url):
+        """Énumération des chemins sensibles"""
+        paths = [
+            # WordPress
+            '/wp-login.php',
+            '/wp-admin',
+            '/wp-content',
+            '/wp-includes',
+            '/wp-content/plugins',
+            '/wp-content/themes',
+            '/wp-content/uploads',
+            '/wp-json/wp/v2/users',
+            '/author/1',
+            '/wp-config.php.bak',
+            '/wp-config.php.old',
+            '/wp-config.php~',
+            '/wp-admin/install.php',
+            '/wp-admin/setup-config.php',
+            '/wp-admin/admin-ajax.php',
+            
+            # Admin et Login
+            '/admin',
+            '/administrator',
+            '/login',
+            '/panel',
+            
+            # Fichiers sensibles
+            '/robots.txt',
+            '/sitemap.xml',
+            '/.env',
+            '/.git',
+            '/readme.html',
+            '/license.txt',
+            
+            # Éducation
+            '/moodle',
+            '/contact',
+            '/about',
+            '/news',
+            '/events',
+            '/calendar',
+            '/students',
+            '/teachers',
+            '/parents',
+            '/library',
+            '/resources',
+            '/emploi-du-temps',
+            '/pronote',
+            '/ent',
+            '/cdi',
+            '/vie-scolaire',
+            '/actualites',
+            '/mentions-legales',
+            '/plan-du-site'
+        ]
 
-    async def gather_info(self):
-        """Collecte les informations de base"""
-        try:
-            # Résolution DNS initiale
-            ip = socket.gethostbyname(self.target)
-            self.results['ip_addresses'].add(ip)
+        print(f"\n{Fore.CYAN}Énumération des chemins sensibles sur {base_url}...{Style.RESET_ALL}")
+        print(f"Test de {len(paths)} chemins potentiels")
 
-            # Découverte des sous-domaines
-            print("\nRecherche des sous-domaines...")
-            await self.discover_subdomains()
+        tasks = []
+        for path in paths:
+            task = asyncio.create_task(self.check_path(session, base_url, path))
+            tasks.append(task)
+        
+        with tqdm(total=len(tasks), desc="Vérification des chemins") as pbar:
+            for coro in asyncio.as_completed(tasks):
+                await coro
+                pbar.update(1)
 
-            # Scan des ports
-            print("\nScan des ports en cours...")
-            self.basic_port_scan(ip)
-
-            # Détection des technologies
-            print("\nDétection des technologies...")
-            await self.detect_technologies(f"http://{self.target}")
-            await self.detect_technologies(f"https://{self.target}")
-
-        except Exception as e:
-            print(f"Erreur lors de la résolution DNS: {str(e)}")
-            return
-
-        # Affichage des résultats
-        self.print_results()
-
-    def print_results(self):
-        """Affiche les résultats de manière organisée"""
-        print("\n" + "="*50)
-        print(f"Résultats pour {self.target}")
-        print("="*50 + "\n")
-
-        sections = {
-            'Adresses IP': self.results['ip_addresses'],
-            'Sous-domaines': self.results['subdomains'],
-            'Ports ouverts': self.results['open_ports']
+    async def scan_ports(self, ip):
+        """Scan des ports courants"""
+        common_ports = {
+            21: "ftp",
+            22: "ssh",
+            23: "telnet",
+            25: "smtp",
+            53: "dns",
+            80: "http",
+            110: "pop3",
+            143: "imap",
+            443: "https",
+            465: "smtps",
+            587: "submission",
+            993: "imaps",
+            995: "pop3s",
+            3306: "mysql",
+            3389: "rdp",
+            5432: "postgresql",
+            8080: "http-proxy",
+            8443: "https-alt"
         }
 
-        for title, items in sections.items():
-            if items:
-                print(f"\n{Fore.GREEN}{title}:{Style.RESET_ALL}")
-                for item in items:
-                    print(f"  - {item}")
+        print(f"\n{Fore.CYAN}Scan des ports en cours...{Style.RESET_ALL}")
+        for port, service in common_ports.items():
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1)
+                result = sock.connect_ex((ip, port))
+                if result == 0:
+                    self.results['open_ports'].add(f"{port}/tcp ({service})")
+                sock.close()
+            except:
+                pass
+
+    async def detect_technologies(self, session, url):
+        """Détecte les technologies utilisées"""
+        try:
+            async with session.get(url, timeout=5, ssl=False) as response:
+                if response.status == 200:
+                    text = await response.text()
+                    # WordPress
+                    if 'wp-content' in text:
+                        self.results['technologies'].add("WordPress: Detected")
+                    # PHP
+                    if 'PHP' in response.headers.get('X-Powered-By', ''):
+                        self.results['technologies'].add(f"PHP: {response.headers['X-Powered-By']}")
+                    # jQuery
+                    if 'jquery' in text.lower():
+                        self.results['technologies'].add("jQuery: Detected")
+                    # Bootstrap
+                    if 'bootstrap' in text.lower():
+                        self.results['technologies'].add("Bootstrap: Detected")
+        except:
+            pass
+
+    async def gather_info(self):
+        """Collecte toutes les informations"""
+        print(f"{Fore.GREEN}{ascii_art}{Style.RESET_ALL}")
+        print(f"Cible: {self.target}")
+        
+        # Résolution DNS initiale
+        try:
+            main_ip = socket.gethostbyname(self.target)
+            self.results['ip_addresses'].add(main_ip)
+        except:
+            print(f"{Fore.RED}Impossible de résoudre le domaine{Style.RESET_ALL}")
+            return
+
+        async with aiohttp.ClientSession() as session:
+            # Découverte des sous-domaines
+            await self.discover_subdomains()
+            
+            # Scan des ports
+            await self.scan_ports(main_ip)
+            
+            # Détection des technologies
+            await self.detect_technologies(session, f"https://{self.target}")
+            
+            # Énumération des chemins pour le domaine principal
+            await self.enumerate_paths(session, f"https://{self.target}")
+
+        self.display_results()
+
+    def display_results(self):
+        """Affiche les résultats"""
+        print(f"\n{Fore.GREEN}================================================")
+        print(f"Résultats pour {self.target}")
+        print(f"================================================{Style.RESET_ALL}\n")
+
+        if self.results['ip_addresses']:
+            print(f"{Fore.YELLOW}Adresses IP:{Style.RESET_ALL}")
+            for ip in sorted(self.results['ip_addresses']):
+                print(f"  - {ip}")
+            print()
+
+        if self.results['subdomains']:
+            print(f"{Fore.YELLOW}Sous-domaines:{Style.RESET_ALL}")
+            for subdomain in sorted(self.results['subdomains']):
+                print(f"  - {subdomain}")
+            print()
+
+        if self.results['open_ports']:
+            print(f"{Fore.YELLOW}Ports ouverts:{Style.RESET_ALL}")
+            for port in sorted(self.results['open_ports']):
+                print(f"  - {port}")
+            print()
 
         if self.results['technologies']:
-            print(f"\n{Fore.GREEN}Technologies détectées:{Style.RESET_ALL}")
-            for tech, version in self.results['technologies'].items():
-                print(f"  - {tech}: {version}")
+            print(f"{Fore.YELLOW}Technologies détectées:{Style.RESET_ALL}")
+            for tech in sorted(self.results['technologies']):
+                print(f"  - {tech}")
+            print()
 
-        if self.results['vulnerabilities']:
-            print(f"\n{Fore.RED}Vulnérabilités détectées:{Style.RESET_ALL}")
-            for vuln in self.results['vulnerabilities']:
-                print(f"  - {vuln['technology']} {vuln['version']}")
-                print(f"    CVE: {vuln['cve']}")
-                print(f"    CVSS: {vuln['cvss']}")
-                print(f"    Description: {vuln['description']}\n")
+        if self.results['sensitive_paths']:
+            print(f"{Fore.YELLOW}Chemins sensibles découverts:{Style.RESET_ALL}")
+            for path in sorted(self.results['sensitive_paths']):
+                print(f"  - {path}")
+            print()
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) != 2:
-        print("Usage: python osint_scanner.py <domaine>")
+        print(f"{Fore.RED}Usage: python {sys.argv[0]} <domain>{Style.RESET_ALL}")
         sys.exit(1)
 
-    toolkit = OsintToolkit()
-    toolkit.target = sys.argv[1]
-    toolkit.print_banner()
-    print(f"\n[*] Cible: {sys.argv[1]}")
-    asyncio.run(toolkit.gather_info())
+    scanner = OsintScanner()
+    scanner.target = sys.argv[1]
+    asyncio.run(scanner.gather_info())
+
+if __name__ == "__main__":
+    main()

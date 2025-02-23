@@ -1,6 +1,6 @@
-# Djaws Secret
+# Djaws Secret Scanner
 
-Un outil OSINT (Open Source Intelligence) autonome et puissant pour la collecte d'informations, développé en Python.
+Un outil OSINT (Open Source Intelligence) puissant pour l'analyse de sécurité des sites web, avec une attention particulière pour les sites WordPress et les établissements scolaires.
 
 ```ascii
     ____     _ _____ _ _ _ _____ 
@@ -14,22 +14,40 @@ Un outil OSINT (Open Source Intelligence) autonome et puissant pour la collecte 
 
 ## Fonctionnalités
 
-### Découverte de Sous-domaines
+### 1. Découverte de Sous-domaines
 - Scan asynchrone de sous-domaines courants
-- Détection des titres de pages pour chaque sous-domaine
-- Identification des adresses IP associées
+- Détection des titres de pages
+- Identification des adresses IP
+- Support des protocoles HTTP et HTTPS
+- Vérification des serveurs de messagerie
 
-### Analyse des Technologies
-- Détection précise des technologies web avec versions
-- Identification des frameworks et CMS
-- Détection des bibliothèques JavaScript
-- Analyse des serveurs web et de leurs versions
-- Recherche automatique de vulnérabilités (CVE) associées
+### 2. Scan de Ports
+- Détection des ports courants (21, 22, 23, 25, 53, 80, etc.)
+- Identification des services (HTTP, HTTPS, FTP, SSH, etc.)
+- Vérification des ports sensibles (phpMyAdmin, admin panels, etc.)
+- Scan optimisé avec timeouts appropriés
 
-### Scan de Ports
-- Scan TCP des ports courants
-- Identification des services
-- Détection des versions quand possible
+### 3. Détection des Technologies
+- Identification des CMS (WordPress, etc.)
+- Détection des langages (PHP, etc.)
+- Frameworks JavaScript (jQuery, etc.)
+- Versions des technologies détectées
+
+### 4. Énumération WordPress
+- Page de connexion (/wp-login.php)
+- Interface d'administration (/wp-admin)
+- Fichiers sensibles (wp-config.php)
+- Thèmes et plugins installés
+- Utilisateurs WordPress
+- Fichiers de sauvegarde potentiels
+
+### 5. Chemins Sensibles
+- Fichiers de configuration (.env, config.php)
+- Fichiers système (robots.txt, .htaccess)
+- Pages d'administration
+- Dossiers exposés
+- Fichiers de backup
+- Pages spécifiques à l'éducation (ENT, Pronote, etc.)
 
 ## Installation
 
@@ -43,11 +61,6 @@ cd djaws-secret
 ```bash
 pip install -r requirements.txt
 ```
-
-3. (Optionnel) Configuration des API :
-Pour une analyse plus approfondie des vulnérabilités, vous pouvez configurer une clé API Vulners :
-- Obtenez une clé API sur [vulners.com](https://vulners.com)
-- Ajoutez votre clé dans le script (variable vulners_api)
 
 ## Utilisation
 
@@ -66,37 +79,52 @@ python djaws_scanner.py example.com
              Secret OSINT Tool
     =====================================================
 
-[*] Cible: example.com
-
-==================================================
-Résultats pour example.com
-==================================================
+Cible: example.com
 
 Adresses IP:
   - 93.184.216.34
 
 Sous-domaines:
-  - www.example.com (93.184.216.34) - Example Domain
+  - www.example.com (93.184.216.34) - Example Domain [https]
+  - mail.example.com (93.184.216.34) - Webmail [http]
 
 Ports ouverts:
   - 80/tcp (http)
   - 443/tcp (https)
+  - 21/tcp (ftp)
 
 Technologies détectées:
-  - Apache: 2.4.41
-  - PHP: 7.4.3
-  - WordPress: 5.8.2
+  - PHP: 7.4.4
+  - WordPress: Detected
+  - jQuery: Detected
 
-Vulnérabilités détectées:
-  - WordPress 5.8.2
-    CVE: CVE-2022-21661
-    CVSS: 8.8
-    Description: Vulnérabilité XSS dans l'éditeur
+Chemins sensibles découverts:
+  - /wp-login.php (200) - WordPress Login
+  - /wp-content/uploads (200) - Index of /uploads
+  - /robots.txt (200) - Robots file
+  - /.env (403) - Forbidden
 ```
+
+## Caractéristiques Techniques
+
+- Scan asynchrone pour des performances optimales
+- Gestion intelligente des timeouts
+- Support des protocoles HTTP/HTTPS
+- Détection automatique des technologies
+- Interface colorée pour une meilleure lisibilité
+- Barre de progression pour les opérations longues
 
 ## Note de Sécurité
 
-Cet outil est destiné à des fins éducatives et de recherche légitimes uniquement. L'utilisation malveillante est strictement interdite. Certaines fonctionnalités (comme le scan de ports) peuvent être considérées comme intrusives, utilisez-les de manière responsable et uniquement sur des systèmes pour lesquels vous avez l'autorisation.
+Cet outil est destiné à des fins éducatives et de recherche légitimes uniquement. L'utilisation malveillante est strictement interdite. Certaines fonctionnalités peuvent être considérées comme intrusives, utilisez-les de manière responsable et uniquement sur des systèmes pour lesquels vous avez l'autorisation.
+
+## Contribution
+
+Les contributions sont les bienvenues ! N'hésitez pas à :
+- Signaler des bugs
+- Proposer de nouvelles fonctionnalités
+- Améliorer la documentation
+- Soumettre des pull requests
 
 ## Licence
 

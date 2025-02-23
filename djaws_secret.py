@@ -13,7 +13,6 @@ from tqdm import tqdm
 from fake_useragent import UserAgent
 import re
 import concurrent.futures
-import socket.io.client as socketio
 
 init()  # Initialize colorama
 

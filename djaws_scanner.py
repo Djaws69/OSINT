@@ -4,6 +4,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import sys
+import re
 from colorama import Fore, Style, init
 
 # Initialize colorama
@@ -128,26 +129,73 @@ class OsintScanner:
             '/readme.html',
             '/license.txt',
             
-            # Éducation
-            '/moodle',
-            '/contact',
-            '/about',
-            '/news',
-            '/events',
-            '/calendar',
-            '/students',
-            '/teachers',
-            '/parents',
-            '/library',
-            '/resources',
-            '/emploi-du-temps',
-            '/pronote',
-            '/ent',
-            '/cdi',
-            '/vie-scolaire',
-            '/actualites',
-            '/mentions-legales',
-            '/plan-du-site'
+            # Chemins courants
+            '/api',
+            '/api/v1',
+            '/api/v2',
+            '/docs',
+            '/documentation',
+            '/backup',
+            '/bak',
+            '/old',
+            '/dev',
+            '/test',
+            '/temp',
+            '/tmp',
+            '/files',
+            '/upload',
+            '/uploads',
+            '/media',
+            '/static',
+            '/assets',
+            '/images',
+            '/img',
+            '/css',
+            '/js',
+            '/javascript',
+            '/config',
+            '/settings',
+            '/setup',
+            '/install',
+            '/database',
+            '/db',
+            '/sql',
+            '/mysql',
+            '/phpmyadmin',
+            '/phpinfo.php',
+            '/info.php',
+            '/.htaccess',
+            '/.htpasswd',
+            '/web.config',
+            '/server-status',
+            '/server-info',
+            '/.well-known',
+            '/security.txt',
+            '/crossdomain.xml',
+            '/clientaccesspolicy.xml',
+            '/.vscode',
+            '/.idea',
+            '/.git/config',
+            '/.gitignore',
+            '/.env.backup',
+            '/.env.example',
+            '/composer.json',
+            '/composer.lock',
+            '/package.json',
+            '/package-lock.json',
+            '/node_modules',
+            '/vendor',
+            '/log',
+            '/logs',
+            '/error_log',
+            '/debug',
+            '/console',
+            '/status',
+            '/health',
+            '/metrics',
+            '/swagger',
+            '/swagger-ui',
+            '/api-docs'
         ]
 
         print(f"\n{Fore.CYAN}Énumération des chemins sensibles sur {base_url}...{Style.RESET_ALL}")
@@ -165,59 +213,238 @@ class OsintScanner:
 
     async def scan_ports(self, ip):
         """Scan des ports courants"""
-        common_ports = {
-            21: "ftp",
-            22: "ssh",
-            23: "telnet",
-            25: "smtp",
-            53: "dns",
-            80: "http",
-            110: "pop3",
-            143: "imap",
-            443: "https",
-            465: "smtps",
-            587: "submission",
-            993: "imaps",
-            995: "pop3s",
-            3306: "mysql",
-            3389: "rdp",
-            5432: "postgresql",
-            8080: "http-proxy",
-            8443: "https-alt"
-        }
+        ports = [
+            21,    # FTP
+            22,    # SSH
+            23,    # Telnet
+            25,    # SMTP
+            53,    # DNS
+            80,    # HTTP
+            110,   # POP3
+            111,   # RPCBind
+            135,   # MSRPC
+            139,   # NetBIOS
+            143,   # IMAP
+            443,   # HTTPS
+            445,   # SMB
+            993,   # IMAPS
+            995,   # POP3S
+            1433,  # MSSQL
+            1521,  # Oracle
+            2049,  # NFS
+            3306,  # MySQL
+            3389,  # RDP
+            5432,  # PostgreSQL
+            5900,  # VNC
+            5985,  # WinRM HTTP
+            5986,  # WinRM HTTPS
+            6379,  # Redis
+            8080,  # HTTP Alternate
+            8443,  # HTTPS Alternate
+            8888,  # Alternative HTTP
+            9090,  # Alternative HTTP
+            9200,  # Elasticsearch
+            27017, # MongoDB
+            27018, # MongoDB Alternative
+            27019, # MongoDB Web
+            3000,  # Node.js / React
+            4444,  # Metasploit
+            6000,  # X11
+            7001,  # WebLogic
+            8081,  # Alternative HTTP
+            8082,  # Alternative HTTP
+            8083,  # Alternative HTTP
+            8084,  # Alternative HTTP
+            8085,  # Alternative HTTP
+            8086,  # InfluxDB
+            8087,  # Alternative HTTP
+            8088,  # Alternative HTTP
+            8089,  # Splunk
+            8161,  # ActiveMQ Admin
+            8443,  # Alternative HTTPS
+            8880,  # Alternative HTTP
+            9000,  # SonarQube
+            9001,  # Alternative HTTP
+            9042,  # Cassandra
+            9043,  # Alternative HTTP
+            9092,  # Kafka
+            9200,  # Elasticsearch HTTP
+            9300,  # Elasticsearch Transport
+            10000, # Webmin
+            11211, # Memcached
+            15672, # RabbitMQ Management
+            27017, # MongoDB
+            50000, # SAP
+            50070, # Hadoop
+            50075, # Hadoop
+            50090  # Hadoop
+        ]
 
         print(f"\n{Fore.CYAN}Scan des ports en cours...{Style.RESET_ALL}")
-        for port, service in common_ports.items():
+        for port in ports:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(1)
                 result = sock.connect_ex((ip, port))
                 if result == 0:
-                    self.results['open_ports'].add(f"{port}/tcp ({service})")
+                    self.results['open_ports'].add(f"{port}/tcp")
                 sock.close()
             except:
                 pass
 
-    async def detect_technologies(self, session, url):
-        """Détecte les technologies utilisées"""
-        try:
-            async with session.get(url, timeout=5, ssl=False) as response:
-                if response.status == 200:
-                    text = await response.text()
-                    # WordPress
-                    if 'wp-content' in text:
-                        self.results['technologies'].add("WordPress: Detected")
-                    # PHP
-                    if 'PHP' in response.headers.get('X-Powered-By', ''):
-                        self.results['technologies'].add(f"PHP: {response.headers['X-Powered-By']}")
-                    # jQuery
-                    if 'jquery' in text.lower():
-                        self.results['technologies'].add("jQuery: Detected")
-                    # Bootstrap
-                    if 'bootstrap' in text.lower():
-                        self.results['technologies'].add("Bootstrap: Detected")
-        except:
-            pass
+    async def detect_technologies(self, response):
+        """Détection des technologies utilisées"""
+        headers = response.headers
+        html_content = await response.text()
+        soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Dictionnaire pour stocker les technologies et leurs versions
+        techs = {}
+
+        # Détection via les en-têtes HTTP
+        server = headers.get('Server', '')
+        if server:
+            techs['Server'] = server
+
+        powered_by = headers.get('X-Powered-By', '')
+        if powered_by:
+            techs['Powered-By'] = powered_by
+
+        # Détection du framework PHP
+        if 'PHP' in server or 'PHP' in powered_by:
+            php_version = re.search(r'PHP/([0-9.]+)', server + powered_by)
+            if php_version:
+                techs['PHP'] = php_version.group(1)
+
+        # Détection de WordPress et sa version
+        if soup.find('meta', {'name': 'generator', 'content': re.compile(r'WordPress')}):
+            wp_version = soup.find('meta', {'name': 'generator'})
+            if wp_version:
+                version = re.search(r'WordPress ([0-9.]+)', wp_version['content'])
+                if version:
+                    techs['WordPress'] = version.group(1)
+                else:
+                    techs['WordPress'] = 'Detected'
+
+        # Détection des frameworks JavaScript
+        scripts = soup.find_all('script', src=True)
+        for script in scripts:
+            src = script['src'].lower()
+            
+            # jQuery
+            if 'jquery' in src:
+                jquery_version = re.search(r'jquery[.-]([0-9.]+)', src)
+                if jquery_version:
+                    techs['jQuery'] = jquery_version.group(1)
+                else:
+                    techs['jQuery'] = 'Detected'
+            
+            # React
+            if 'react' in src:
+                react_version = re.search(r'react[.-]([0-9.]+)', src)
+                if react_version:
+                    techs['React'] = react_version.group(1)
+                else:
+                    techs['React'] = 'Detected'
+            
+            # Vue.js
+            if 'vue' in src:
+                vue_version = re.search(r'vue[.-]([0-9.]+)', src)
+                if vue_version:
+                    techs['Vue.js'] = vue_version.group(1)
+                else:
+                    techs['Vue.js'] = 'Detected'
+            
+            # Angular
+            if 'angular' in src:
+                angular_version = re.search(r'angular[.-]([0-9.]+)', src)
+                if angular_version:
+                    techs['Angular'] = angular_version.group(1)
+                else:
+                    techs['Angular'] = 'Detected'
+
+        # Détection des frameworks CSS
+        links = soup.find_all('link', rel='stylesheet')
+        for link in links:
+            href = link.get('href', '').lower()
+            
+            # Bootstrap
+            if 'bootstrap' in href:
+                bootstrap_version = re.search(r'bootstrap[.-]([0-9.]+)', href)
+                if bootstrap_version:
+                    techs['Bootstrap'] = bootstrap_version.group(1)
+                else:
+                    techs['Bootstrap'] = 'Detected'
+            
+            # Tailwind
+            if 'tailwind' in href:
+                tailwind_version = re.search(r'tailwind[.-]([0-9.]+)', href)
+                if tailwind_version:
+                    techs['Tailwind'] = tailwind_version.group(1)
+                else:
+                    techs['Tailwind'] = 'Detected'
+
+        # Détection des CMS
+        # Drupal
+        if soup.find('meta', {'name': 'Generator', 'content': re.compile(r'Drupal')}):
+            drupal_version = soup.find('meta', {'name': 'Generator'})
+            if drupal_version:
+                version = re.search(r'Drupal ([0-9.]+)', drupal_version['content'])
+                if version:
+                    techs['Drupal'] = version.group(1)
+                else:
+                    techs['Drupal'] = 'Detected'
+
+        # Joomla
+        if soup.find('meta', {'name': 'generator', 'content': re.compile(r'Joomla')}):
+            joomla_version = soup.find('meta', {'name': 'generator'})
+            if joomla_version:
+                version = re.search(r'Joomla! ([0-9.]+)', joomla_version['content'])
+                if version:
+                    techs['Joomla'] = version.group(1)
+                else:
+                    techs['Joomla'] = 'Detected'
+
+        # Détection des serveurs web via les en-têtes
+        if 'nginx' in server.lower():
+            nginx_version = re.search(r'nginx/([0-9.]+)', server)
+            if nginx_version:
+                techs['Nginx'] = nginx_version.group(1)
+            else:
+                techs['Nginx'] = 'Detected'
+
+        if 'apache' in server.lower():
+            apache_version = re.search(r'Apache/([0-9.]+)', server)
+            if apache_version:
+                techs['Apache'] = apache_version.group(1)
+            else:
+                techs['Apache'] = 'Detected'
+
+        # Détection des langages backend via les cookies et en-têtes
+        if 'PHPSESSID' in headers.get('Set-Cookie', ''):
+            if 'PHP' not in techs:
+                techs['PHP'] = 'Detected'
+
+        if 'ASP.NET' in headers.get('X-Powered-By', ''):
+            aspnet_version = re.search(r'ASP\.NET[_ ]([0-9.]+)', headers.get('X-AspNet-Version', ''))
+            if aspnet_version:
+                techs['ASP.NET'] = aspnet_version.group(1)
+            else:
+                techs['ASP.NET'] = 'Detected'
+
+        # Détection des frameworks backend
+        if 'laravel' in headers.get('Set-Cookie', '').lower():
+            techs['Laravel'] = 'Detected'
+
+        if 'django' in headers.get('X-Framework', '').lower():
+            techs['Django'] = 'Detected'
+
+        if 'rails' in headers.get('X-Powered-By', '').lower():
+            techs['Ruby on Rails'] = 'Detected'
+
+        # Mise à jour des résultats
+        for tech, version in techs.items():
+            self.results['technologies'].add(f"{tech}: {version}")
 
     async def gather_info(self):
         """Collecte toutes les informations"""
@@ -240,7 +467,11 @@ class OsintScanner:
             await self.scan_ports(main_ip)
             
             # Détection des technologies
-            await self.detect_technologies(session, f"https://{self.target}")
+            try:
+                async with session.get(f"https://{self.target}", timeout=5, ssl=False) as response:
+                    await self.detect_technologies(response)
+            except:
+                pass
             
             # Énumération des chemins pour le domaine principal
             await self.enumerate_paths(session, f"https://{self.target}")

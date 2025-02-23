@@ -304,15 +304,65 @@ class OsintScanner:
         # Détection via les en-têtes HTTP
         server = headers.get('Server', '')
         if server:
-            techs['Server'] = server
+            # Détection Apache avec version
+            if 'apache' in server.lower():
+                apache_version = re.search(r'Apache/([0-9.]+)', server)
+                if apache_version:
+                    techs['Apache'] = apache_version.group(1)
+                    # Détection des modules Apache
+                    modules = []
+                    if 'mod_ssl' in server.lower():
+                        modules.append('mod_ssl')
+                    if 'mod_perl' in server.lower():
+                        modules.append('mod_perl')
+                    if 'mod_python' in server.lower():
+                        modules.append('mod_python')
+                    if modules:
+                        techs['Apache_Modules'] = ', '.join(modules)
+                else:
+                    techs['Apache'] = 'Version non détectée'
 
-        powered_by = headers.get('X-Powered-By', '')
-        if powered_by:
-            techs['Powered-By'] = powered_by
+            # Détection Nginx avec version
+            elif 'nginx' in server.lower():
+                nginx_version = re.search(r'nginx/([0-9.]+)', server)
+                if nginx_version:
+                    techs['Nginx'] = nginx_version.group(1)
+                else:
+                    techs['Nginx'] = 'Version non détectée'
+
+            # Détection IIS avec version
+            elif 'iis' in server.lower():
+                iis_version = re.search(r'IIS/([0-9.]+)', server)
+                if iis_version:
+                    techs['IIS'] = iis_version.group(1)
+                else:
+                    techs['IIS'] = 'Version non détectée'
+
+            # Détection LiteSpeed avec version
+            elif 'litespeed' in server.lower():
+                ls_version = re.search(r'LiteSpeed/([0-9.]+)', server)
+                if ls_version:
+                    techs['LiteSpeed'] = ls_version.group(1)
+                else:
+                    techs['LiteSpeed'] = 'Version non détectée'
+
+            # Autres serveurs
+            else:
+                techs['Server'] = server
+
+        # Détection via les autres en-têtes
+        if 'X-Powered-By' in headers:
+            techs['Powered-By'] = headers['X-Powered-By']
+
+        # Détection via les en-têtes spécifiques aux serveurs
+        if 'X-AspNet-Version' in headers:
+            techs['ASP.NET'] = headers['X-AspNet-Version']
+        if 'X-AspNetMvc-Version' in headers:
+            techs['ASP.NET MVC'] = headers['X-AspNetMvc-Version']
 
         # Détection du framework PHP
-        if 'PHP' in server or 'PHP' in powered_by:
-            php_version = re.search(r'PHP/([0-9.]+)', server + powered_by)
+        if 'PHP' in server or ('X-Powered-By' in headers and 'PHP' in headers['X-Powered-By']):
+            php_version = re.search(r'PHP/([0-9.]+)', server + headers.get('X-Powered-By', ''))
             if php_version:
                 techs['PHP'] = php_version.group(1)
 
@@ -484,35 +534,110 @@ class OsintScanner:
         print(f"Résultats pour {self.target}")
         print(f"================================================{Style.RESET_ALL}\n")
 
+        # Affichage des adresses IP
         if self.results['ip_addresses']:
-            print(f"{Fore.YELLOW}Adresses IP:{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[+] Adresses IP:{Style.RESET_ALL}")
             for ip in sorted(self.results['ip_addresses']):
                 print(f"  - {ip}")
             print()
 
+        # Affichage des sous-domaines
         if self.results['subdomains']:
-            print(f"{Fore.YELLOW}Sous-domaines:{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[+] Sous-domaines découverts:{Style.RESET_ALL}")
             for subdomain in sorted(self.results['subdomains']):
                 print(f"  - {subdomain}")
             print()
 
+        # Affichage des ports ouverts
         if self.results['open_ports']:
-            print(f"{Fore.YELLOW}Ports ouverts:{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[+] Ports ouverts:{Style.RESET_ALL}")
             for port in sorted(self.results['open_ports']):
                 print(f"  - {port}")
             print()
 
+        # Affichage des technologies
         if self.results['technologies']:
-            print(f"{Fore.YELLOW}Technologies détectées:{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[+] Technologies détectées:{Style.RESET_ALL}")
+            
+            # Grouper les technologies par catégorie
+            server_techs = []
+            framework_techs = []
+            cms_techs = []
+            other_techs = []
+            
             for tech in sorted(self.results['technologies']):
-                print(f"  - {tech}")
+                if any(s in tech.lower() for s in ['apache', 'nginx', 'iis', 'litespeed']):
+                    server_techs.append(tech)
+                elif any(s in tech.lower() for s in ['php', 'asp.net', 'django', 'rails']):
+                    framework_techs.append(tech)
+                elif any(s in tech.lower() for s in ['wordpress', 'drupal', 'joomla']):
+                    cms_techs.append(tech)
+                else:
+                    other_techs.append(tech)
+            
+            if server_techs:
+                print("  [Serveurs Web]")
+                for tech in server_techs:
+                    print(f"  - {tech}")
+            
+            if framework_techs:
+                print("\n  [Frameworks]")
+                for tech in framework_techs:
+                    print(f"  - {tech}")
+            
+            if cms_techs:
+                print("\n  [CMS]")
+                for tech in cms_techs:
+                    print(f"  - {tech}")
+            
+            if other_techs:
+                print("\n  [Autres Technologies]")
+                for tech in other_techs:
+                    print(f"  - {tech}")
             print()
 
+        # Affichage des chemins sensibles
         if self.results['sensitive_paths']:
-            print(f"{Fore.YELLOW}Chemins sensibles découverts:{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}[+] Chemins sensibles découverts:{Style.RESET_ALL}")
+            
+            # Grouper les chemins par catégorie
+            admin_paths = []
+            config_paths = []
+            sensitive_files = []
+            other_paths = []
+            
             for path in sorted(self.results['sensitive_paths']):
-                print(f"  - {path}")
+                if any(s in path.lower() for s in ['admin', 'login', 'wp-admin']):
+                    admin_paths.append(path)
+                elif any(s in path.lower() for s in ['.env', 'config', '.htaccess', '.git']):
+                    config_paths.append(path)
+                elif any(s in path.lower() for s in ['.php', '.json', '.xml', '.txt']):
+                    sensitive_files.append(path)
+                else:
+                    other_paths.append(path)
+            
+            if config_paths:
+                print("  [Fichiers de Configuration]")
+                for path in config_paths:
+                    print(f"  - {path}")
+            
+            if admin_paths:
+                print("\n  [Interfaces d'Administration]")
+                for path in admin_paths:
+                    print(f"  - {path}")
+            
+            if sensitive_files:
+                print("\n  [Fichiers Sensibles]")
+                for path in sensitive_files:
+                    print(f"  - {path}")
+            
+            if other_paths:
+                print("\n  [Autres Chemins]")
+                for path in other_paths:
+                    print(f"  - {path}")
             print()
+
+        print(f"{Fore.YELLOW}Note: Ces résultats sont fournis à titre informatif uniquement.{Style.RESET_ALL}\n")
 
 def main():
     if len(sys.argv) != 2:

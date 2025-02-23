@@ -3,13 +3,13 @@
 Un outil OSINT (Open Source Intelligence) autonome et puissant pour la collecte d'informations, développé en Python.
 
 ```ascii
-                  .---.
-                 /     \
-                |  .-.  |
-                |  | |  |     DJAWS SECRET
-                |  '-'  |    ---------------
-                 \     /   Advanced OSINT Tool
-                  `---'
+     ____  _____ _____ _____ _____ 
+    |    \|  _  |  |  |   __|   __|
+    |  |  |     |  |  |__   |__   |
+    |____/|__|__|\___/|_____|_____|
+    =====================================================
+          Secret OSINT Tool - By Djaws
+    =====================================================
 ```
 
 ## Fonctionnalités
@@ -52,13 +52,13 @@ L'outil effectuera automatiquement :
 ## Exemple de sortie
 
 ```
-                  .---.
-                 /     \
-                |  .-.  |
-                |  | |  |     DJAWS SECRET
-                |  '-'  |    ---------------
-                 \     /   Advanced OSINT Tool
-                  `---'
+     ____  _____ _____ _____ _____ 
+    |    \|  _  |  |  |   __|   __|
+    |  |  |     |  |  |__   |__   |
+    |____/|__|__|\___/|_____|_____|
+    =====================================================
+          Secret OSINT Tool - By Djaws
+    =====================================================
 
 [*] Cible: example.com
 

@@ -12,13 +12,12 @@ Un outil OSINT (Open Source Intelligence) autonome et puissant pour la collecte 
     =====================================================
 ```
 
-## Fonctionnalités Avancées
+## Fonctionnalités
 
-### Découverte de Sous-domaines et Répertoires
+### Découverte de Sous-domaines
 - Scan asynchrone de sous-domaines courants
 - Détection des titres de pages pour chaque sous-domaine
-- Découverte de répertoires sensibles (/admin, /phpmyadmin, etc.)
-- Détection de fichiers de configuration exposés (.env, .git, etc.)
+- Identification des adresses IP associées
 
 ### Analyse des Technologies
 - Détection précise des technologies web avec versions
@@ -27,23 +26,10 @@ Un outil OSINT (Open Source Intelligence) autonome et puissant pour la collecte 
 - Analyse des serveurs web et de leurs versions
 - Recherche automatique de vulnérabilités (CVE) associées
 
-### Scan de Ports Avancé
-- Utilisation de nmap pour une détection précise
-- Identification des versions des services
-- Détection des produits sur chaque port
-- Fallback sur scan TCP basique si nécessaire
-
-### Détection des Réseaux Sociaux
-- Support multi-plateformes (Facebook, Twitter, LinkedIn, etc.)
-- Détection via Wayback Machine
-- Extraction avancée des profils sociaux
-- Support des nouveaux formats d'URL (x.com, etc.)
-
-### Analyse de Sécurité
-- Détection des vulnérabilités avec scores CVSS
-- Identification des technologies obsolètes
-- Repérage des fichiers sensibles exposés
-- Analyse des en-têtes de sécurité
+### Scan de Ports
+- Scan TCP des ports courants
+- Identification des services
+- Détection des versions quand possible
 
 ## Installation
 
@@ -66,7 +52,7 @@ Pour une analyse plus approfondie des vulnérabilités, vous pouvez configurer u
 ## Utilisation
 
 ```bash
-python djaws_secret.py --target example.com
+python djaws_scanner.py example.com
 ```
 
 ## Exemple de Sortie
@@ -91,35 +77,21 @@ Adresses IP:
 
 Sous-domaines:
   - www.example.com (93.184.216.34) - Example Domain
-  - mail.example.com (93.184.216.34) - Mail Server
 
 Ports ouverts:
-  - 80/tcp (http) - Version: Apache/2.4.41
-  - 443/tcp (https) - Version: nginx/1.18.0
-  - 25/tcp (smtp) - Produit: Postfix
+  - 80/tcp (http)
+  - 443/tcp (https)
 
 Technologies détectées:
   - Apache: 2.4.41
   - PHP: 7.4.3
   - WordPress: 5.8.2
-  - jQuery: 3.5.1
 
-Vulnérabilités:
-  - Technologie: WordPress
-    Version: 5.8.2
+Vulnérabilités détectées:
+  - WordPress 5.8.2
     CVE: CVE-2022-21661
     CVSS: 8.8
     Description: Vulnérabilité XSS dans l'éditeur
-
-Répertoires sensibles:
-  - /wp-admin (200)
-  - /phpmyadmin (403)
-  - /.git (403)
-
-Réseaux sociaux:
-  - Twitter: twitter.com/example
-  - LinkedIn: linkedin.com/company/example
-  - Facebook: facebook.com/example
 ```
 
 ## Note de Sécurité
